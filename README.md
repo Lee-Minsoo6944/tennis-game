@@ -7,8 +7,6 @@
 
 ## 🔗 게임 플레이 바로가기
 
-[![Play Game](https://img.shields.io/badge/Roland_Garros-게임_플레이하기-2ea44f?style=for-the-badge&logo=github&logoColor=white)](https://lee-minsoo6944.github.io/tennis-game/)
-
 👉 **[https://lee-minsoo6944.github.io/tennis-game/](https://lee-minsoo6944.github.io/tennis-game/)**
 
 ---

@@ -15,15 +15,15 @@
 
 ### 1. 게임 시작 화면 (메뉴)
 게임 시작 전 난이도(쉬움 / 보통 / 어려움)를 선택하고 조작법을 확인할 수 있습니다.
-![Game Start Menu](start-screen.png)
+![Game Start Menu](https://raw.githubusercontent.com/Lee-Minsoo6944/tennis-game/main/스크린샷%202026-10-26%20161946.png)
 
 ### 2. 인게임 플레이 화면
 클레이 코트 위에서 라켓을 조작해 실시간으로 스코어를 겨룹니다.
-![In-game Play](play-screen.png)
+![In-game Play](https://raw.githubusercontent.com/Lee-Minsoo6944/tennis-game/main/스크린샷%202026-10-26%20162013.png)
 
 ### 3. 게임 종료 화면
 승리 또는 패배 결과와 최종 스코어가 안내되며 재도전이 가능합니다.
-![Game Over Screen](game-over.png)
+![Game Over Screen](https://raw.githubusercontent.com/Lee-Minsoo6944/tennis-game/main/스크린샷%202026-10-26%20162024.png)
 
 ---
 

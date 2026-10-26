@@ -7,32 +7,38 @@
 
 ## 🔗 게임 플레이 바로가기
 
+[![Play Game](https://img.shields.io/badge/Roland_Garros-게임_플레이하기-2ea44f?style=for-the-badge&logo=github&logoColor=white)](https://lee-minsoo6944.github.io/tennis-game/)
+
 👉 **[https://lee-minsoo6944.github.io/tennis-game/](https://lee-minsoo6944.github.io/tennis-game/)**
 
 ---
 
-## 📸 게임 화면 및 구성 (Screenshots)
+## 📋 게임 가이드 (화면, 조작법 및 진행 방식)
 
-### 1. 게임 시작 화면 (메뉴)
-게임 시작 전 난이도(쉬움 / 보통 / 어려움)를 선택하고 조작법을 확인할 수 있습니다.
-![Game Start Menu](https://raw.githubusercontent.com/Lee-Minsoo6944/tennis-game/main/스크린샷%202026-10-26%20161946.png)
+게임의 진행 순서에 따라 화면과 규칙을 한눈에 확인할 수 있습니다.
 
-### 2. 인게임 플레이 화면
-클레이 코트 위에서 라켓을 조작해 실시간으로 스코어를 겨룹니다.
-![In-game Play](https://raw.githubusercontent.com/Lee-Minsoo6944/tennis-game/main/스크린샷%202026-10-26%20162013.png)
-
-### 3. 게임 종료 화면
-승리 또는 패배 결과와 최종 스코어가 안내되며 재도전이 가능합니다.
-![Game Over Screen](https://raw.githubusercontent.com/Lee-Minsoo6944/tennis-game/main/스크린샷%202026-10-26%20162024.png)
+### 1. 게임 시작 단계 (메뉴)
+* **화면 구성**: ![시작 화면](https://raw.githubusercontent.com/Lee-Minsoo6944/tennis-game/main/스크린샷%202026-10-26%20161946.png)[cite: 2]
+* **조작 및 설정**: 
+  * 난이도(`쉬움` / `보통` / `어려움`) 중 하나를 선택한 뒤 [경기 시작] 버튼을 누릅니다[cite: 2].
+* **진행 규칙**: 
+  * 실제 테니스 점수 규칙인 `0` ➔ `15` ➔ `30` ➔ `40` 체계로 진행됩니다[cite: 2].
+  * `40`점 상태에서 한 점을 더 얻으면 최종 승리합니다[cite: 2].
 
 ---
 
-## 🎮 게임 조작법 및 규칙 (Rules & Controls)
+### 2. 인게임 플레이 단계
+* **화면 구성**: ![플레이 화면](https://raw.githubusercontent.com/Lee-Minsoo6944/tennis-game/main/스크린샷%202026-10-26%20162013.png)[cite: 3]
+* **조작 방법**: 
+  * 키보드 방향키 `←`, `→`를 이용해 하단에 위치한 플레이어 라켓을 좌우로 조작합니다[cite: 2].
+* **진행 규칙**: 
+  * 클레이 코트 위에서 컴퓨터와 공을 주고받으며 실시간 스코어(상단 스코어보드)를 겨룹니다[cite: 3].
 
-### 1. 조작 방법
-* **라켓 이동**: 키보드 방향키 `←`, `→`를 이용해 하단 라켓을 좌우로 조작합니다.
+---
 
-### 2. 테니스 룰 및 진행 방식
-* **득점 방식**: 실제 테니스 점수 규칙인 `0` ➔ `15` ➔ `30` ➔ `40` 점수 체계로 진행됩니다.
-* **승리 조건**: `40`점 상태에서 한 점을 더 획득하면 승리하게 됩니다!
-* **난이도 설정**: 플레이어의 실력에 맞추어 `쉬움`, `보통`, `어려움` 중 선택하여 컴퓨터와 대결할 수 있습니다.
+### 3. 게임 종료 단계
+* **화면 구성**: ![종료 화면](https://raw.githubusercontent.com/Lee-Minsoo6944/tennis-game/main/스크린샷%202026-10-26%20162024.png)[cite: 4]
+* **진행 결과**: 
+  * 최종 승리 또는 패배 결과와 함께 최종 스코어가 안내됩니다[cite: 4].
+* **조작 방법**: 
+  * [다시 도전] 버튼을 눌러 언제든 게임을 재시작할 수 있습니다[cite: 4].

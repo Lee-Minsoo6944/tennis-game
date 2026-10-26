@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>롤랑가로스 테니스 대결</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            background-color: #1a202c;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* 게임 컨테이너 (롤랑가로스 클레이 코트) */
+        #game-container {
+            position: relative;
+            width: 600px;
+            height: 700px;
+            background-color: #d35400; /* 클레이 코트 붉은 흙 */
+            background-image: linear-gradient(135deg, rgba(255,255,255,0.05) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05) 75%, transparent 75%, transparent);
+            background-size: 100px 100px;
+            border: 6px solid #873600;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* 코트 라인 */
+        .line { position: absolute; background-color: white; box-shadow: 0 0 2px rgba(0,0,0,0.3); }
+        .doubles-sideline-left { width: 4px; height: 100%; top: 0; left: 50px; }
+        .doubles-sideline-right { width: 4px; height: 100%; top: 0; right: 50px; }
+        .singles-sideline-left { width: 4px; height: 100%; top: 0; left: 100px; }
+        .singles-sideline-right { width: 4px; height: 100%; top: 0; right: 100px; }
+        .baseline-top { width: calc(100% - 200px); height: 4px; top: 100px; left: 100px; }
+        .baseline-bottom { width: calc(100% - 200px); height: 4px; bottom: 100px; left: 100px; }
+        .service-line-top { width: calc(100% - 200px); height: 4px; top: 250px; left: 100px; }
+        .service-line-bottom { width: calc(100% - 200px); height: 4px; bottom: 250px; left: 100px; }
+        .center-line { width: 4px; height: calc(100% - 500px); top: 250px; left: 50%; transform: translateX(-50%); }
+        .service-center-line { width: 4px; height: 100px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+        /* 🌟 네트 (가운데) */
+        #net {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 12px;
+            transform: translateY(-50%);
+            /* 네트의 그물망(메쉬) 패턴을 CSS로 표현 */
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(255, 255, 255, 0.4),
+                rgba(255, 255, 255, 0.4) 2px,
+                transparent 2px,
+                transparent 6px
+            ), rgba(0, 0, 0, 0.3);
+            border-top: 3px solid white;
+            border-bottom: 3px solid white;
+            z-index: 4; /* 공보다 위에 있어서 가끔 공을 가림 (입체감) */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        }
+        /* 네트 기둥 */
+        #net::before, #net::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 24px;
+            background-color: #cbd5e1;
+            top: -6px;
+            border-radius: 2px;
+        }
+        #net::before { left: 0; }
+        #net::after { right: 0; }
+
+        /* 🌟 캐릭터 (사람 + 라켓) */
+        .player-character {
+            position: absolute;
+            width: 100px;
+            height: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            transition: left 0.05s linear;
+        }
+        #ai-character { top: 15px; left: 250px; }
+        #player-character { bottom: 15px; left: 250px; }
+
+        .person { font-size: 45px; line-height: 1; }
+        .racket { font-size: 30px; line-height: 1; margin-top: -10px; }
+        #ai-character .racket { transform: rotate(180deg); margin-top: 0; margin-bottom: -10px; order: -1; }
+
+        /* 공 (테니스 공) */
+        #ball {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background-color: #d4e157;
+            border-radius: 50%;
+            box-shadow: inset -4px -4px 8px rgba(0,0,0,0.3), 0 0 10px rgba(212, 225, 87, 0.6);
+            z-index: 6;
+            background-image: radial-gradient(circle at 30% 30%, transparent 40%, rgba(255,255,255,0.8) 45%, transparent 50%);
+        }
+
+        /* UI 레이어 */
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.85);
+            z-index: 10;
+        }
+
+        #ui-layer.hidden { display: none; }
+
+        .panel {
+            text-align: center;
+            padding: 30px;
+            background: #2d3748;
+            border-radius: 12px;
+            border: 2px solid #4a5568;
+            width: 80%;
+        }
+
+        h1 { margin-bottom: 20px; color: #ecc94b; font-size: 1.8em; }
+        p { margin-bottom: 15px; line-height: 1.6; font-size: 1.1em; }
+
+        .difficulty-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+        .diff-btn {
+            padding: 12px 20px;
+            font-size: 1em;
+            font-weight: bold;
+            border: 2px solid #4a5568;
+            background: #1a202c;
+            color: #a0aec0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .diff-btn:hover { background: #4a5568; color: white; }
+        .diff-btn.active { background: #38a169; color: white; border-color: #38a169; }
+
+        .action-btn {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: white;
+            background-color: #3182ce;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 100%;
+        }
+        .action-btn:hover { background-color: #2b6cb0; }
+
+        /* 🌟 점수판 (테니스 규칙 적용) */
+        #scoreboard {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.85); /* 검은색 전광판 */
+            padding: 10px 40px;
+            border-radius: 8px;
+            border: 2px solid #f1c40f;
+            font-size: 3em;
+            font-weight: bold;
+            color: #f1c40f; /* 노란색 불빛 */
+            font-family: 'Courier New', Courier, monospace;
+            z-index: 8;
+            display: flex;
+            gap: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5), 0 0 20px rgba(241, 196, 15, 0.2);
+        }
+        
+        /* 점수판 구분선 */
+        .score-divider {
+            color: #a0aec0;
+            font-size: 0.8em;
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- 코트 라인 -->
+        <div class="line doubles-sideline-left"></div>
+        <div class="line doubles-sideline-right"></div>
+        <div class="line singles-sideline-left"></div>
+        <div class="line singles-sideline-right"></div>
+        <div class="line baseline-top"></div>
+        <div class="line baseline-bottom"></div>
+        <div class="line service-line-top"></div>
+        <div class="line service-line-bottom"></div>
+        <div class="line center-line"></div>
+        <div class="line service-center-line"></div>
+
+        <!-- 🌟 네트 추가 -->
+        <div id="net"></div>
+
+        <!-- 점수판 -->
+        <div id="scoreboard">
+            <span id="player-score">0</span> 
+            <span class="score-divider">-</span> 
+            <span id="ai-score">0</span>
+        </div>
+
+        <!-- 캐릭터 -->
+        <div class="player-character" id="ai-character">
+            <div class="person">🧍‍♂️</div>
+            <div class="racket">🏸</div>
+        </div>
+
+        <div class="player-character" id="player-character">
+            <div class="person">🧍‍♂️</div>
+            <div class="racket">🏸</div>
+        </div>
+
+        <!-- 공 -->
+        <div id="ball"></div>
+    </div>
+
+    <!-- UI 레이어 -->
+    <div id="ui-layer">
+        <div class="panel" id="start-panel">
+            <h1>🎾 롤랑가로스 테니스</h1>
+            <p>방향키 <strong>← →</strong> 로 아래쪽 라켓을 조종하세요!</p>
+            <p>실제 테니스 점수(0, 15, 30, 40)로 진행됩니다.</p>
+            <p>40점에서 한 점을 더 얻으면 승리!</p>
+            
+            <p style="margin-top:20px; color:#a0aec0;">컴퓨터 난이도를 선택하세요:</p>
+            <div class="difficulty-group">
+                <button class="diff-btn active" data-diff="easy">쉬움</button>
+                <button class="diff-btn" data-diff="normal">보통</button>
+                <button class="diff-btn" data-diff="hard">어려움</button>
+            </div>
+
+            <button class="action-btn" id="start-btn">경기 시작</button>
+        </div>
+        
+        <div class="panel" id="end-panel" style="display: none;">
+            <h1 id="result-title" style="color: #48bb78;">🎉 승리했습니다!</h1>
+            <p>최종 스코어: <strong id="final-player">0</strong> - <strong id="final-ai">0</strong></p>
+            <button class="action-btn" id="restart-btn" style="background-color:#38a169;">다시 도전</button>
+        </div>
+    </div>
+
+    <script>
+        const container = document.getElementById('game-container');
+        const playerCharacter = document.getElementById('player-character');
+        const aiCharacter = document.getElementById('ai-character');
+        const ball = document.getElementById('ball');
+        const playerScoreEl = document.getElementById('player-score');
+        const aiScoreEl = document.getElementById('ai-score');
+        const uiLayer = document.getElementById('ui-layer');
+        const startPanel = document.getElementById('start-panel');
+        const endPanel = document.getElementById('end-panel');
+        const resultTitle = document.getElementById('result-title');
+        const finalPlayer = document.getElementById('final-player');
+        const finalAi = document.getElementById('final-ai');
+        
+        let isPlaying = false;
+        
+        // 🌟 테니스 점수 시스템 (0, 15, 30, 40)
+        const tennisScores = ["0", "15", "30", "40"];
+        let playerScoreIndex = 0; // 0 -> 0점, 3 -> 40점
+        let aiScoreIndex = 0;
+        
+        const charWidth = 100;
+        const charHeight = 80;
+        const playerHitY = 700 - 15 - 80; 
+        const aiHitY = 15 + 80;
+        
+        let playerX = 250; 
+        let aiX = 250;     
+        let moveLeft = false;
+        let moveRight = false;
+        const playerSpeed = 8;
+        
+        let ballX, ballY;
+        let ballSpeedX, ballSpeedY;
+        const ballRadius = 12;
+        const baseBallSpeed = 6;
+
+        let currentDifficulty = 'normal';
+        const difficultySettings = {
+            easy:   { aiSpeed: 3.5 }, 
+            normal: { aiSpeed: 5.5 }, 
+            hard:   { aiSpeed: 8.0 }  
+        };
+
+        // 방향키 조작
+        window.addEventListener('keydown', (e) => {
+            if (!isPlaying) return;
+            if (e.key === 'ArrowLeft') moveLeft = true;
+            if (e.key === 'ArrowRight') moveRight = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft') moveLeft = false;
+            if (e.key === 'ArrowRight') moveRight = false;
+        });
+
+        // 난이도 선택
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentDifficulty = e.target.dataset.diff;
+            });
+        });
+
+        function resetBall() {
+            ballX = container.clientWidth / 2 - ballRadius;
+            ballY = container.clientHeight / 2 - ballRadius;
+            ballSpeedX = (Math.random() > 0.5 ? 1 : -1) * (baseBallSpeed * 0.7);
+            ballSpeedY = (Math.random() > 0.5 ? 1 : -1) * baseBallSpeed;
+        }
+
+        function updateGame() {
+            if (!isPlaying) return;
+
+            // 플레이어 이동
+            if (moveLeft) playerX -= playerSpeed;
+            if (moveRight) playerX += playerSpeed;
+            if (playerX < 50) playerX = 50;
+            if (playerX > container.clientWidth - charWidth - 50) playerX = container.clientWidth - charWidth - 50;
+            playerCharacter.style.left = playerX + 'px';
+
+            // 공 이동
+            ballX += ballSpeedX;
+            ballY += ballSpeedY;
+
+            // 좌우 벽 충돌
+            if (ballX <= 50 || ballX >= container.clientWidth - 50 - (ballRadius * 2)) {
+                ballSpeedX *= -1;
+                if (ballX <= 50) ballX = 50;
+                if (ballX >= container.clientWidth - 50 - (ballRadius * 2)) ballX = container.clientWidth - 50 - (ballRadius * 2);
+            }
+
+            // 플레이어 라켓 충돌
+            const playerRacketY = playerHitY + 40; 
+            if (ballY >= playerRacketY - ballRadius && 
+                ballX + (ballRadius * 2) >= playerX + 20 &&
+                ballX <= playerX + charWidth - 20 && 
+                ballSpeedY > 0) {
+                ballSpeedY *= -1.05;
+                ballY = playerRacketY - ballRadius;
+                let hitPos = (ballX + ballRadius - (playerX + 20)) / (charWidth - 40); 
+                ballSpeedX = baseBallSpeed * (hitPos - 0.5) * 2.5;
+            }
+
+            // AI 라켓 충돌
+            const aiRacketY = aiHitY - 40;
+            if (ballY <= aiRacketY + ballRadius && 
+                ballX + (ballRadius * 2) >= aiX + 20 && 
+                ballX <= aiX + charWidth - 20 && 
+                ballSpeedY < 0) {
+                ballSpeedY *= -1.05;
+                ballY = aiRacketY + ballRadius;
+                let hitPos = (ballX + ballRadius - (aiX + 20)) / (charWidth - 40); 
+                ballSpeedX = baseBallSpeed * (hitPos - 0.5) * 2.5;
+            }
+
+            // 🌟 득점 처리 (테니스 점수 규칙 적용)
+            if (ballY > container.clientHeight) {
+                aiScoreIndex++;
+                updateScoreboard();
+                if (aiScoreIndex >= 4) { // 40점에서 한 점 더 얻으면 승리 (4번째 인덱스)
+                    gameOver(false);
+                    return;
+                }
+                resetBall();
+            } else if (ballY < -ballRadius * 2) {
+                playerScoreIndex++;
+                updateScoreboard();
+                if (playerScoreIndex >= 4) {
+                    gameOver(true);
+                    return;
+                }
+                resetBall();
+            }
+
+            // AI 이동
+            let aiSpeed = difficultySettings[currentDifficulty].aiSpeed;
+            let targetX = ballX - (charWidth / 2) + ballRadius;
+            if (aiX < targetX - 10) aiX += aiSpeed;
+            else if (aiX > targetX + 10) aiX -= aiSpeed;
+            
+            if (aiX < 50) aiX = 50;
+            if (aiX > container.clientWidth - charWidth - 50) aiX = container.clientWidth - charWidth - 50;
+            aiCharacter.style.left = aiX + 'px';
+
+            ball.style.left = ballX + 'px';
+            ball.style.top = ballY + 'px';
+
+            requestAnimationFrame(updateGame);
+        }
+
+        // 🌟 점수판 업데이트 함수
+        function updateScoreboard() {
+            // 4점 이상(승리)일 때 인덱스 초과 방지
+            let pDisplay = playerScoreIndex < 4 ? tennisScores[playerScoreIndex] : "승리";
+            let aDisplay = aiScoreIndex < 4 ? tennisScores[aiScoreIndex] : "승리";
+            playerScoreEl.innerText = pDisplay;
+            aiScoreEl.innerText = aDisplay;
+        }
+
+        function startGame() {
+            isPlaying = true;
+            playerScoreIndex = 0; // 점수 초기화
+            aiScoreIndex = 0;
+            updateScoreboard();
+            
+            playerX = 250;
+            aiX = 250;
+            playerCharacter.style.left = playerX + 'px';
+            aiCharacter.style.left = aiX + 'px';
+            moveLeft = false;
+            moveRight = false;
+
+            resetBall();
+            
+            uiLayer.classList.add('hidden');
+            startPanel.style.display = 'none';
+            endPanel.style.display = 'none';
+
+            requestAnimationFrame(updateGame);
+        }
+
+        function gameOver(isPlayerWin) {
+            isPlaying = false;
+            
+            // 최종 스코어 표시 (40 또는 승리)
+            finalPlayer.innerText = isPlayerWin ? "승리" : tennisScores[playerScoreIndex];
+            finalAi.innerText = isPlayerWin ? tennisScores[aiScoreIndex] : "승리";
+            
+            uiLayer.classList.remove('hidden');
+            endPanel.style.display = 'block';
+            startPanel.style.display = 'none';
+
+            if (isPlayerWin) {
+                resultTitle.innerText = "🎉 승리했습니다!";
+                resultTitle.style.color = "#48bb78"; 
+            } else {
+                resultTitle.innerText = "😢 패배했습니다...";
+                resultTitle.style.color = "#f56565"; 
+            }
+        }
+
+        document.getElementById('start-btn').addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            startPanel.style.display = 'block';
+            endPanel.style.display = 'none';
+            uiLayer.classList.remove('hidden');
+        });
+
+    </script>
+</body>
+</html>

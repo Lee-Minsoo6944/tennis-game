@@ -90,14 +90,45 @@
             align-items: center;
             justify-content: center;
             z-index: 5;
-            transition: left 0.05s linear;
         }
         #ai-character { top: 15px; left: 250px; }
-        #player-character { bottom: 15px; left: 250px; }
+        #player-character { top: 605px; left: 250px; }
 
         .person { font-size: 45px; line-height: 1; }
-        .racket { font-size: 30px; line-height: 1; margin-top: -10px; }
+        .racket { font-size: 30px; line-height: 1; margin-top: -10px; transform-origin: 50% 80%; }
         #ai-character .racket { transform: rotate(180deg); margin-top: 0; margin-bottom: -10px; order: -1; }
+
+        /* 스윙 동작 */
+        #player-character.swing .racket { animation: swing-player 0.22s ease-out; }
+        #ai-character.swing .racket { animation: swing-ai 0.22s ease-out; }
+        @keyframes swing-player {
+            0%   { transform: rotate(0deg); }
+            40%  { transform: rotate(-75deg) scale(1.25); }
+            100% { transform: rotate(0deg); }
+        }
+        @keyframes swing-ai {
+            0%   { transform: rotate(180deg); }
+            40%  { transform: rotate(255deg) scale(1.25); }
+            100% { transform: rotate(180deg); }
+        }
+
+        /* 서브 안내 문구 */
+        #serve-msg {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, 30px);
+            padding: 8px 18px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #fefcbf;
+            white-space: nowrap;
+            z-index: 8;
+            pointer-events: none;
+        }
+        #serve-msg.hidden { display: none; }
 
         /* 공 (테니스 공) */
         #ball {
@@ -238,13 +269,17 @@
 
         <!-- 공 -->
         <div id="ball"></div>
+
+        <!-- 서브 안내 -->
+        <div id="serve-msg" class="hidden"></div>
     </div>
 
     <!-- UI 레이어 -->
     <div id="ui-layer">
         <div class="panel" id="start-panel">
             <h1>🎾 롤랑가로스 테니스</h1>
-            <p>방향키 <strong>← →</strong> 로 아래쪽 라켓을 조종하세요!</p>
+            <p>방향키 <strong>↑ ↓ ← →</strong> 로 아래쪽 선수를 움직이고,<br><strong>스페이스바</strong>로 라켓을 휘둘러 공을 치세요!</p>
+            <p>점수를 딴 쪽이 다음 서브를 넣습니다.<br>내 서브일 땐 스페이스바를 누르면 서브!</p>
             <p>실제 테니스 점수(0, 15, 30, 40)로 진행됩니다.</p>
             <p>40점에서 한 점을 더 얻으면 승리!</p>
             
@@ -278,47 +313,92 @@
         const resultTitle = document.getElementById('result-title');
         const finalPlayer = document.getElementById('final-player');
         const finalAi = document.getElementById('final-ai');
-        
+        const serveMsg = document.getElementById('serve-msg');
+
         let isPlaying = false;
-        
+        // 'serve' = 서브 대기 중, 'rally' = 공이 움직이는 중
+        let phase = 'serve';
+        // 다음 서브를 넣을 사람 ('player' 또는 'ai') — 직전 점수를 딴 쪽
+        let server = 'player';
+        let aiServeAt = 0;
+
         // 🌟 테니스 점수 시스템 (0, 15, 30, 40)
         const tennisScores = ["0", "15", "30", "40"];
         let playerScoreIndex = 0; // 0 -> 0점, 3 -> 40점
         let aiScoreIndex = 0;
-        
+
+        // 코트 크기와 위치 값
+        const COURT_W = 600;
+        const COURT_H = 700;
+        const SIDE = 50;                 // 바깥 사이드라인 위치
+        const NET_Y = COURT_H / 2;
         const charWidth = 100;
         const charHeight = 80;
-        const playerHitY = 700 - 15 - 80; 
-        const aiHitY = 15 + 80;
-        
-        let playerX = 250; 
-        let aiX = 250;     
-        let moveLeft = false;
-        let moveRight = false;
-        const playerSpeed = 8;
-        
+        const AI_Y = 15;
+        const PLAYER_START_Y = COURT_H - 15 - charHeight;
+        const PLAYER_MIN_Y = NET_Y + 15;   // 네트를 넘어가지 못함
+        const PLAYER_MAX_Y = COURT_H - charHeight - 5;
+        const aiRacketY = AI_Y + charHeight - 40;
+
+        let playerX = 250;
+        let playerY = PLAYER_START_Y;
+        let aiX = 250;
+        const keys = { left: false, right: false, up: false, down: false };
+
         let ballX, ballY;
-        let ballSpeedX, ballSpeedY;
+        let ballSpeedX = 0, ballSpeedY = 0;
+        let rallySpeed = 0;
         const ballRadius = 12;
-        const baseBallSpeed = 6;
 
-        let currentDifficulty = 'normal';
+        // 스윙: 스페이스바를 누른 뒤 잠깐 동안만 공을 칠 수 있음
+        const SWING_ACTIVE_MS = 220;
+        const SWING_COOLDOWN_MS = 380;
+        let lastPlayerSwing = -Infinity;
+
+        // 🌟 난이도: 공 속도, 내 캐릭터 속도, 컴퓨터 속도가 모두 달라짐
         const difficultySettings = {
-            easy:   { aiSpeed: 3.5 }, 
-            normal: { aiSpeed: 5.5 }, 
-            hard:   { aiSpeed: 8.0 }  
+            easy:   { ballSpeed: 5,   maxBallSpeed: 9,  playerSpeed: 6,  aiSpeed: 3.5 },
+            normal: { ballSpeed: 7,   maxBallSpeed: 12, playerSpeed: 8,  aiSpeed: 6   },
+            hard:   { ballSpeed: 9.5, maxBallSpeed: 16, playerSpeed: 10, aiSpeed: 9.5 }
         };
+        // 화면에 처음 선택돼 있는 버튼(쉬움)과 맞춤
+        let currentDifficulty = 'easy';
 
-        // 방향키 조작
+        const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+        // 키 조작
+        const keyMap = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
         window.addEventListener('keydown', (e) => {
             if (!isPlaying) return;
-            if (e.key === 'ArrowLeft') moveLeft = true;
-            if (e.key === 'ArrowRight') moveRight = true;
+            if (keyMap[e.key]) {
+                keys[keyMap[e.key]] = true;
+                e.preventDefault();
+            }
+            if (e.code === 'Space') {
+                e.preventDefault(); // 화면 스크롤·버튼 눌림 방지
+                if (!e.repeat) onSpace();
+            }
         });
         window.addEventListener('keyup', (e) => {
-            if (e.key === 'ArrowLeft') moveLeft = false;
-            if (e.key === 'ArrowRight') moveRight = false;
+            if (keyMap[e.key]) keys[keyMap[e.key]] = false;
         });
+
+        function onSpace() {
+            if (phase === 'serve') {
+                if (server === 'player') playerServe();
+                return;
+            }
+            const now = performance.now();
+            if (now - lastPlayerSwing < SWING_COOLDOWN_MS) return;
+            lastPlayerSwing = now;
+            playSwing(playerCharacter);
+        }
+
+        function playSwing(character) {
+            character.classList.remove('swing');
+            void character.offsetWidth; // 애니메이션 다시 시작
+            character.classList.add('swing');
+        }
 
         // 난이도 선택
         document.querySelectorAll('.diff-btn').forEach(btn => {
@@ -329,91 +409,155 @@
             });
         });
 
-        function resetBall() {
-            ballX = container.clientWidth / 2 - ballRadius;
-            ballY = container.clientHeight / 2 - ballRadius;
-            ballSpeedX = (Math.random() > 0.5 ? 1 : -1) * (baseBallSpeed * 0.7);
-            ballSpeedY = (Math.random() > 0.5 ? 1 : -1) * baseBallSpeed;
+        // 서브 준비: 선수들을 제자리로 보내고 공을 서버 앞에 둠
+        function setupServe() {
+            phase = 'serve';
+            ballSpeedX = 0;
+            ballSpeedY = 0;
+            playerX = 250;
+            playerY = PLAYER_START_Y;
+            aiX = 250;
+            lastPlayerSwing = -Infinity;
+            placeBallAtServer();
+
+            if (server === 'player') {
+                serveMsg.textContent = '내 서브! 스페이스바를 눌러 서브하세요';
+            } else {
+                serveMsg.textContent = '컴퓨터 서브 준비 중...';
+                aiServeAt = performance.now() + 1200;
+            }
+            serveMsg.classList.remove('hidden');
         }
 
-        function updateGame() {
+        function placeBallAtServer() {
+            if (server === 'player') {
+                ballX = playerX + charWidth / 2 - ballRadius;
+                ballY = playerY - ballRadius * 2;
+            } else {
+                ballX = aiX + charWidth / 2 - ballRadius;
+                ballY = AI_Y + charHeight;
+            }
+        }
+
+        function launchServe(goingUp) {
+            const s = difficultySettings[currentDifficulty];
+            rallySpeed = s.ballSpeed;
+            ballSpeedY = goingUp ? -rallySpeed : rallySpeed;
+            ballSpeedX = (Math.random() - 0.5) * rallySpeed * 0.8;
+            phase = 'rally';
+            serveMsg.classList.add('hidden');
+        }
+
+        function playerServe() {
+            lastPlayerSwing = performance.now();
+            playSwing(playerCharacter);
+            launchServe(true);
+        }
+
+        function aiServe() {
+            playSwing(aiCharacter);
+            launchServe(false);
+        }
+
+        // 공을 쳐서 돌려보냄 — 라켓의 어느 부분에 맞았는지에 따라 각도가 바뀜
+        function hitBall(byPlayer, hitterX) {
+            const s = difficultySettings[currentDifficulty];
+            rallySpeed = Math.min(rallySpeed * 1.05, s.maxBallSpeed);
+            const hitPos = clamp((ballX + ballRadius - hitterX) / charWidth, 0, 1);
+            ballSpeedX = rallySpeed * (hitPos - 0.5) * 1.6;
+            ballSpeedY = byPlayer ? -rallySpeed : rallySpeed;
+        }
+
+        let lastTime = 0;
+        function updateGame(time) {
             if (!isPlaying) return;
 
-            // 플레이어 이동
-            if (moveLeft) playerX -= playerSpeed;
-            if (moveRight) playerX += playerSpeed;
-            if (playerX < 50) playerX = 50;
-            if (playerX > container.clientWidth - charWidth - 50) playerX = container.clientWidth - charWidth - 50;
+            // 모니터 주사율(60Hz/120Hz 등)과 상관없이 같은 속도로 움직이게 보정
+            const dt = lastTime ? Math.min((time - lastTime) / (1000 / 60), 3) : 1;
+            lastTime = time;
+            const now = performance.now();
+            const s = difficultySettings[currentDifficulty];
+
+            // 플레이어 이동 (상하좌우)
+            const step = s.playerSpeed * dt;
+            if (keys.left) playerX -= step;
+            if (keys.right) playerX += step;
+            if (keys.up) playerY -= step;
+            if (keys.down) playerY += step;
+            playerX = clamp(playerX, SIDE, COURT_W - charWidth - SIDE);
+            playerY = clamp(playerY, PLAYER_MIN_Y, PLAYER_MAX_Y);
+
+            if (phase === 'serve') {
+                // 서브 전에는 공이 서버를 따라다님
+                placeBallAtServer();
+                if (server === 'ai' && now >= aiServeAt) aiServe();
+            } else {
+                // 공 이동
+                ballX += ballSpeedX * dt;
+                ballY += ballSpeedY * dt;
+
+                // 좌우 벽 충돌
+                const maxBallX = COURT_W - SIDE - ballRadius * 2;
+                if (ballX <= SIDE || ballX >= maxBallX) {
+                    ballSpeedX *= -1;
+                    ballX = clamp(ballX, SIDE, maxBallX);
+                }
+
+                // 플레이어: 스윙 중이고 공이 라켓 범위 안에 있을 때만 맞음
+                const swinging = now - lastPlayerSwing < SWING_ACTIVE_MS;
+                const ballCX = ballX + ballRadius;
+                const ballCY = ballY + ballRadius;
+                if (swinging && ballSpeedY > 0 &&
+                    ballCX >= playerX - 10 && ballCX <= playerX + charWidth + 10 &&
+                    ballCY >= playerY - 15 && ballCY <= playerY + charHeight) {
+                    hitBall(true, playerX);
+                }
+
+                // 컴퓨터 라켓 충돌 (컴퓨터는 공이 닿으면 자동으로 스윙)
+                if (ballSpeedY < 0 &&
+                    ballY <= aiRacketY + ballRadius && ballY >= aiRacketY - ballRadius * 3 &&
+                    ballX + ballRadius * 2 >= aiX + 10 &&
+                    ballX <= aiX + charWidth - 10) {
+                    playSwing(aiCharacter);
+                    ballY = aiRacketY + ballRadius;
+                    hitBall(false, aiX);
+                }
+
+                // 🌟 득점 처리 — 점수를 딴 쪽이 다음 서브
+                if (ballY > COURT_H) {
+                    aiScoreIndex++;
+                    server = 'ai';
+                    updateScoreboard();
+                    if (aiScoreIndex >= 4) { gameOver(false); return; }
+                    setupServe();
+                } else if (ballY < -ballRadius * 2) {
+                    playerScoreIndex++;
+                    server = 'player';
+                    updateScoreboard();
+                    if (playerScoreIndex >= 4) { gameOver(true); return; }
+                    setupServe();
+                }
+            }
+
+            // 컴퓨터 이동 (공을 따라감)
+            const aiStep = s.aiSpeed * dt;
+            if (!(phase === 'serve' && server === 'ai')) {
+                const targetX = ballX - charWidth / 2 + ballRadius;
+                if (aiX < targetX - 10) aiX += Math.min(aiStep, targetX - aiX);
+                else if (aiX > targetX + 10) aiX -= Math.min(aiStep, aiX - targetX);
+            }
+            aiX = clamp(aiX, SIDE, COURT_W - charWidth - SIDE);
+
+            render();
+            requestAnimationFrame(updateGame);
+        }
+
+        function render() {
             playerCharacter.style.left = playerX + 'px';
-
-            // 공 이동
-            ballX += ballSpeedX;
-            ballY += ballSpeedY;
-
-            // 좌우 벽 충돌
-            if (ballX <= 50 || ballX >= container.clientWidth - 50 - (ballRadius * 2)) {
-                ballSpeedX *= -1;
-                if (ballX <= 50) ballX = 50;
-                if (ballX >= container.clientWidth - 50 - (ballRadius * 2)) ballX = container.clientWidth - 50 - (ballRadius * 2);
-            }
-
-            // 플레이어 라켓 충돌
-            const playerRacketY = playerHitY + 40; 
-            if (ballY >= playerRacketY - ballRadius && 
-                ballX + (ballRadius * 2) >= playerX + 20 &&
-                ballX <= playerX + charWidth - 20 && 
-                ballSpeedY > 0) {
-                ballSpeedY *= -1.05;
-                ballY = playerRacketY - ballRadius;
-                let hitPos = (ballX + ballRadius - (playerX + 20)) / (charWidth - 40); 
-                ballSpeedX = baseBallSpeed * (hitPos - 0.5) * 2.5;
-            }
-
-            // AI 라켓 충돌
-            const aiRacketY = aiHitY - 40;
-            if (ballY <= aiRacketY + ballRadius && 
-                ballX + (ballRadius * 2) >= aiX + 20 && 
-                ballX <= aiX + charWidth - 20 && 
-                ballSpeedY < 0) {
-                ballSpeedY *= -1.05;
-                ballY = aiRacketY + ballRadius;
-                let hitPos = (ballX + ballRadius - (aiX + 20)) / (charWidth - 40); 
-                ballSpeedX = baseBallSpeed * (hitPos - 0.5) * 2.5;
-            }
-
-            // 🌟 득점 처리 (테니스 점수 규칙 적용)
-            if (ballY > container.clientHeight) {
-                aiScoreIndex++;
-                updateScoreboard();
-                if (aiScoreIndex >= 4) { // 40점에서 한 점 더 얻으면 승리 (4번째 인덱스)
-                    gameOver(false);
-                    return;
-                }
-                resetBall();
-            } else if (ballY < -ballRadius * 2) {
-                playerScoreIndex++;
-                updateScoreboard();
-                if (playerScoreIndex >= 4) {
-                    gameOver(true);
-                    return;
-                }
-                resetBall();
-            }
-
-            // AI 이동
-            let aiSpeed = difficultySettings[currentDifficulty].aiSpeed;
-            let targetX = ballX - (charWidth / 2) + ballRadius;
-            if (aiX < targetX - 10) aiX += aiSpeed;
-            else if (aiX > targetX + 10) aiX -= aiSpeed;
-            
-            if (aiX < 50) aiX = 50;
-            if (aiX > container.clientWidth - charWidth - 50) aiX = container.clientWidth - charWidth - 50;
+            playerCharacter.style.top = playerY + 'px';
             aiCharacter.style.left = aiX + 'px';
-
             ball.style.left = ballX + 'px';
             ball.style.top = ballY + 'px';
-
-            requestAnimationFrame(updateGame);
         }
 
         // 🌟 점수판 업데이트 함수
@@ -426,44 +570,45 @@
         }
 
         function startGame() {
+            // 버튼에 포커스가 남아 있으면 스페이스바가 버튼을 다시 누르므로 해제
+            if (document.activeElement) document.activeElement.blur();
+
             isPlaying = true;
             playerScoreIndex = 0; // 점수 초기화
             aiScoreIndex = 0;
             updateScoreboard();
-            
-            playerX = 250;
-            aiX = 250;
-            playerCharacter.style.left = playerX + 'px';
-            aiCharacter.style.left = aiX + 'px';
-            moveLeft = false;
-            moveRight = false;
+            keys.left = keys.right = keys.up = keys.down = false;
 
-            resetBall();
-            
+            server = 'player'; // 첫 서브는 플레이어
+            setupServe();
+            render();
+
             uiLayer.classList.add('hidden');
             startPanel.style.display = 'none';
             endPanel.style.display = 'none';
 
+            lastTime = 0;
             requestAnimationFrame(updateGame);
         }
 
         function gameOver(isPlayerWin) {
             isPlaying = false;
-            
+            serveMsg.classList.add('hidden');
+
             // 최종 스코어 표시 (40 또는 승리)
             finalPlayer.innerText = isPlayerWin ? "승리" : tennisScores[playerScoreIndex];
             finalAi.innerText = isPlayerWin ? tennisScores[aiScoreIndex] : "승리";
-            
+
             uiLayer.classList.remove('hidden');
             endPanel.style.display = 'block';
             startPanel.style.display = 'none';
 
             if (isPlayerWin) {
                 resultTitle.innerText = "🎉 승리했습니다!";
-                resultTitle.style.color = "#48bb78"; 
+                resultTitle.style.color = "#48bb78";
             } else {
                 resultTitle.innerText = "😢 패배했습니다...";
-                resultTitle.style.color = "#f56565"; 
+                resultTitle.style.color = "#f56565";
             }
         }
 
@@ -474,6 +619,10 @@
             uiLayer.classList.remove('hidden');
         });
 
+        // 처음 화면에서도 공·선수 위치를 그려 둠
+        server = 'player';
+        placeBallAtServer();
+        render();
     </script>
 </body>
 </html>
